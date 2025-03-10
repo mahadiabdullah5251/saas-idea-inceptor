@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import IdeaGeneratorForm from "@/components/IdeaGeneratorForm";
 import GeneratedIdeas from "@/components/GeneratedIdeas";
 import NextSteps from "@/components/NextSteps";
+import { toast } from "sonner";
 
 const Generate = () => {
   const navigate = useNavigate();
@@ -14,6 +15,13 @@ const Generate = () => {
 
   const handleGenerate = async (formData: any) => {
     setLoading(true);
+    
+    // Log the custom prompt if it exists
+    if (formData.customPrompt) {
+      console.log("Using custom prompt:", formData.customPrompt);
+      toast.info("Using your custom prompt for enhanced results");
+    }
+    
     // Simulated API call - replace with actual AI integration
     setTimeout(() => {
       setIdeas([
@@ -35,6 +43,7 @@ const Generate = () => {
         },
       ]);
       setLoading(false);
+      toast.success("Ideas generated successfully!");
     }, 2000);
   };
 
