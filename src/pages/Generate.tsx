@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import IdeaGeneratorForm from "@/components/IdeaGeneratorForm";
 import GeneratedIdeas from "@/components/GeneratedIdeas";
+import NextSteps from "@/components/NextSteps";
 
 const Generate = () => {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ const Generate = () => {
 
         <h1 className="text-3xl md:text-4xl font-bold mb-8">SaaS Idea Generator</h1>
         
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           <Card className="p-6 bg-slate-800/50 border-slate-700">
             <h2 className="text-xl font-semibold mb-6 text-teal-400">Generate New Ideas</h2>
             <IdeaGeneratorForm onSubmit={handleGenerate} loading={loading} />
@@ -60,6 +61,8 @@ const Generate = () => {
             <h2 className="text-xl font-semibold mb-6 text-teal-400">Generated Ideas</h2>
             <GeneratedIdeas ideas={ideas} loading={loading} />
           </Card>
+          
+          <NextSteps hasIdeas={ideas.length > 0} />
         </div>
       </div>
     </div>
