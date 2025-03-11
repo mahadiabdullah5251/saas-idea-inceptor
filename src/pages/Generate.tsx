@@ -49,35 +49,34 @@ const Generate = () => {
   const handleGenerate = async (formData: any) => {
     setLoading(true);
     
-    // Log the custom prompt if it exists
-    if (formData.customPrompt) {
-      console.log("Using custom prompt:", formData.customPrompt);
-      toast.info("Using your custom prompt for enhanced results");
-    }
-    
-    // Simulated API call - replace with actual AI integration
-    setTimeout(() => {
-      const generatedIdeas = [
-        {
-          id: 1,
-          title: "AI-Powered Content Optimization Platform",
-          category: "B2B",
+    try {
+      // Log the custom prompt if it exists
+      if (formData.customPrompt) {
+        console.log("Using custom prompt:", formData.customPrompt);
+        toast.info("Using your custom prompt for enhanced results");
+      }
+      
+      // Call the Supabase Edge Function
+      const { data: generatedIdeas, error } = await supabase.functions.invoke('generate-ideas', {
+        body: {
           industry: formData.industry,
-          feasibilityScore: 85,
-          description: "A platform that uses AI to analyze and optimize content for maximum engagement and conversion.",
-          saved: false
-        },
-        {
-          id: 2,
-          title: "Remote Team Collaboration Suite",
-          category: "B2B",
-          industry: formData.industry,
-          feasibilityScore: 78,
-          description: "An all-in-one platform for remote teams to collaborate, communicate, and manage projects effectively.",
-          saved: false
-        },
-      ];
+          targetAudience: formData.targetAudience,
+          problemArea: formData.problemArea,
+          customPrompt: formData.customPrompt,
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // If we got a successful response but it's empty, show an error
+      if (!generatedIdeas || generatedIdeas.length === 0) {
+        throw new Error("No ideas were generated. Please try again with different parameters.");
+      }
 
+      console.log("Generated ideas:", generatedIdeas);
+      
       // Check if any ideas are already saved
       if (session) {
         fetchSavedIdeaIds().then(() => {
@@ -90,7 +89,11 @@ const Generate = () => {
         setLoading(false);
         toast.success("Ideas generated successfully!");
       }
-    }, 2000);
+    } catch (error: any) {
+      console.error("Error generating ideas:", error);
+      setLoading(false);
+      toast.error(error.message || "Failed to generate ideas. Please try again.");
+    }
   };
 
   const handleIdeaSaved = (ideaId: number) => {
