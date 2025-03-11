@@ -21,6 +21,15 @@ serve(async (req) => {
     // Log inputs for debugging
     console.log("Received request:", { industry, targetAudience, problemArea, customPrompt });
     
+    // Check if API key is configured
+    if (!GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is not set");
+      return new Response(JSON.stringify({ error: "API key is not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     // Construct the prompt for Gemini
     let prompt = `Generate 3 innovative SaaS business ideas in the ${industry} industry for ${targetAudience} that solve problems related to ${problemArea}.`;
     
@@ -56,15 +65,38 @@ serve(async (req) => {
       }),
     });
 
+    // Check if API response is successful
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Gemini API error:", response.status, errorData);
+      return new Response(JSON.stringify({ 
+        error: `Gemini API returned ${response.status}`, 
+        details: errorData 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const data = await response.json();
-    console.log("Gemini API response:", JSON.stringify(data));
+    console.log("Gemini API response status:", response.status);
+    console.log("Gemini API response headers:", Object.fromEntries(response.headers.entries()));
+    console.log("Gemini API response data:", JSON.stringify(data));
 
     // Extract the generated text
     let generatedText = "";
     if (data.candidates && data.candidates[0]?.content?.parts && data.candidates[0].content.parts[0]?.text) {
       generatedText = data.candidates[0].content.parts[0].text;
+      console.log("Generated text:", generatedText);
     } else {
-      throw new Error("Unexpected response format from Gemini API");
+      console.error("Unexpected response format:", JSON.stringify(data));
+      return new Response(JSON.stringify({ 
+        error: "Unexpected response format from Gemini API",
+        response: data
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Try to extract JSON from the response
@@ -74,21 +106,25 @@ serve(async (req) => {
       const jsonMatch = generatedText.match(/\[\s*\{.*\}\s*\]/s);
       if (jsonMatch) {
         ideas = JSON.parse(jsonMatch[0]);
+        console.log("Parsed JSON from text match:", ideas);
       } else {
         // If no JSON found, try to parse the whole response
         ideas = JSON.parse(generatedText);
+        console.log("Parsed whole text as JSON:", ideas);
       }
     } catch (error) {
       console.error("Failed to parse JSON from Gemini response", error);
+      console.log("Text received:", generatedText);
       
       // Fallback: Create structured ideas from the text response
       ideas = processUnstructuredResponse(generatedText, industry);
+      console.log("Created fallback ideas:", ideas);
     }
 
     // Add IDs and industry to each idea
     const formattedIdeas = ideas.slice(0, 3).map((idea: any, index: number) => ({
       id: index + 1,
-      title: idea.title,
+      title: idea.title || `Business Idea ${index + 1}`,
       description: idea.description || "",
       category: idea.category || "SaaS",
       industry: industry,
