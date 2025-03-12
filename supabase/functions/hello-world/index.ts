@@ -1,12 +1,12 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// Follow Deno's new recommended format for handling requests
+Deno.serve(async (req) => {
+  // Define CORS headers for browser requests
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -20,23 +20,35 @@ serve(async (req) => {
     console.log("Received request with name:", name);
     
     // Create the response
-    const message = `Hello ${name || 'World'}! This is your Supabase Edge Function.`;
-    
-    return new Response(JSON.stringify({ 
-      message,
+    const data = {
+      message: `Hello ${name || 'World'}!`,
       timestamp: new Date().toISOString()
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    };
+    
+    return new Response(
+      JSON.stringify(data), 
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
   } catch (error) {
     console.error("Error in hello-world function:", error);
     
-    return new Response(JSON.stringify({ 
-      error: "Failed to process request",
-      details: error.message 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ 
+        error: "Failed to process request",
+        details: error.message 
+      }), 
+      {
+        status: 500,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        }
+      }
+    );
   }
 });
