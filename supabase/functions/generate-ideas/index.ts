@@ -2,7 +2,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
+// Updated to correct API endpoint
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,12 +43,11 @@ serve(async (req) => {
     
     console.log("Sending prompt to Gemini:", prompt);
 
-    // Call Gemini API with the correct endpoint and body structure
-    const response = await fetch(GEMINI_API_URL, {
+    // Call Gemini API with correct URL and authentication
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GEMINI_API_KEY}`,
       },
       body: JSON.stringify({
         contents: [{
@@ -58,13 +58,16 @@ serve(async (req) => {
       }),
     });
 
+    // Log response status for debugging
+    console.log("Gemini API response status:", response.status);
+    
     // Check if API response is successful
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error("Gemini API error:", response.status, errorData);
+      const errorText = await response.text();
+      console.error("Gemini API error:", response.status, errorText);
       return new Response(JSON.stringify({ 
         error: `Gemini API returned ${response.status}`, 
-        details: errorData 
+        details: errorText 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -72,15 +75,15 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Gemini API response:", JSON.stringify(data));
+    console.log("Gemini API response:", JSON.stringify(data).substring(0, 200) + "...");
 
     // Extract the generated text
     let generatedText = "";
     if (data.candidates && data.candidates[0]?.content?.parts && data.candidates[0].content.parts[0]?.text) {
       generatedText = data.candidates[0].content.parts[0].text;
-      console.log("Generated text:", generatedText);
+      console.log("Generated text length:", generatedText.length);
     } else {
-      console.error("Unexpected response format:", JSON.stringify(data));
+      console.error("Unexpected response format:", JSON.stringify(data).substring(0, 200) + "...");
       return new Response(JSON.stringify({ 
         error: "Unexpected response format from Gemini API",
         response: data
@@ -129,7 +132,10 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error in generate-ideas function:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: "Failed to process request", 
+      details: error.message 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -175,4 +181,3 @@ function processUnstructuredResponse(text: string, industry: string): any[] {
   
   return ideas;
 }
-
