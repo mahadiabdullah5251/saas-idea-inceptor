@@ -12,16 +12,24 @@ const corsHeaders = {
 
 // Use Deno.serve directly for the new API format
 Deno.serve(async (req) => {
+  console.log("Function invoked with method:", req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log("Handling CORS preflight request");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { industry, targetAudience, problemArea, customPrompt } = await req.json();
+    // Get request body
+    const requestText = await req.text();
+    console.log("Request body received:", requestText.substring(0, 200) + (requestText.length > 200 ? "..." : ""));
+    
+    // Parse JSON body
+    const { industry, targetAudience, problemArea, customPrompt } = JSON.parse(requestText);
     
     // Log inputs for debugging
-    console.log("Received request:", { industry, targetAudience, problemArea, customPrompt });
+    console.log("Parsed request:", { industry, targetAudience, problemArea, customPrompt });
     
     // Check if API key is configured
     if (!GEMINI_API_KEY) {
@@ -45,6 +53,7 @@ Deno.serve(async (req) => {
     console.log("Sending prompt to Gemini:", prompt);
 
     // Call Gemini API with correct URL and authentication
+    console.log(`Calling Gemini API at: ${GEMINI_API_URL}?key=API_KEY_REDACTED`);
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
@@ -76,13 +85,15 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Gemini API response:", JSON.stringify(data).substring(0, 200) + "...");
+    console.log("Gemini API response structure:", Object.keys(data));
+    console.log("Response preview:", JSON.stringify(data).substring(0, 200) + "...");
 
     // Extract the generated text
     let generatedText = "";
     if (data.candidates && data.candidates[0]?.content?.parts && data.candidates[0].content.parts[0]?.text) {
       generatedText = data.candidates[0].content.parts[0].text;
       console.log("Generated text length:", generatedText.length);
+      console.log("Text preview:", generatedText.substring(0, 200) + "...");
     } else {
       console.error("Unexpected response format:", JSON.stringify(data).substring(0, 200) + "...");
       return new Response(JSON.stringify({ 
@@ -98,6 +109,7 @@ Deno.serve(async (req) => {
     let ideas;
     try {
       // Look for JSON in the response (it might be surrounded by markdown code blocks or extra text)
+      console.log("Attempting to parse JSON from response");
       const jsonMatch = generatedText.match(/\[\s*\{.*\}\s*\]/s);
       if (jsonMatch) {
         ideas = JSON.parse(jsonMatch[0]);
@@ -126,7 +138,7 @@ Deno.serve(async (req) => {
       feasibilityScore: idea.feasibilityScore || idea.feasibility_score || Math.floor(Math.random() * 30) + 70,
     }));
 
-    console.log("Formatted ideas:", JSON.stringify(formattedIdeas));
+    console.log("Final formatted ideas:", JSON.stringify(formattedIdeas));
 
     return new Response(JSON.stringify(formattedIdeas), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
